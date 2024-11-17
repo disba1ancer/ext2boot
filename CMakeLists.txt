@@ -18,7 +18,11 @@ FetchContent_MakeAvailable(swal)
 add_executable(ext2boot
     src/Device.cpp
     src/Device.h
+    src/Ext2Driver.cpp
+    src/Ext2Driver.h
+    src/byte_parser.h
     src/main.cpp
+    src/types.h
 )
 target_compile_definitions(ext2boot PRIVATE $<$<PLATFORM_ID:Windows>:_WIN32_WINNT=0xA00 UNICODE=1>)
 target_link_libraries(ext2boot PRIVATE swal::swal)

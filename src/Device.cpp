@@ -19,7 +19,7 @@ auto Device::GetDiskSize() const -> ptrdiff_t
     return diskSize;
 }
 
-void Device::Read(uint64_t pos, void* buf, ptrdiff_t size) const
+void Device::Read(void* buf, U64 pos, ptrdiff_t size) const
 {
     OVERLAPPED ovl = {};
     ovl.Offset = pos;
@@ -28,7 +28,7 @@ void Device::Read(uint64_t pos, void* buf, ptrdiff_t size) const
     device.Read(buf, size, bRead, ovl);
 }
 
-void Device::Write(uint64_t pos, const void* buf, ptrdiff_t size) const
+void Device::Write(U64 pos, const void* buf, ptrdiff_t size) const
 {
     OVERLAPPED ovl = {};
     ovl.Offset = pos;
@@ -50,6 +50,7 @@ try {
         LARGE_INTEGER size;
         swal::winapi_call(::GetFileSizeEx(device, &size));
         diskSize = size.QuadPart;
+        return;
     }
     throw;
 }

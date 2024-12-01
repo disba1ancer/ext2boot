@@ -20,7 +20,10 @@ add_executable(ext2boot
     src/Device.h
     src/Ext2Driver.cpp
     src/Ext2Driver.h
+    src/Ext2INode.cpp
+    src/Ext2INode.h
     src/byte_parser.h
+    src/enum_bit.h
     src/main.cpp
     src/types.h
 )

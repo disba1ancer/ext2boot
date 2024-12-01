@@ -3,13 +3,15 @@
 
 #include "types.h"
 #include "Device.h"
+#include "enum_bit.h"
 
 namespace e2bt {
+
+class Ext2INode;
 
 class Ext2Driver
 {
 public:
-    static constexpr auto Magic = 0xEF53;
     enum class State : U16 {
         Valid = 1,
         Error,
@@ -19,25 +21,36 @@ public:
         ReadOnly,
         Panic,
     };
+    enum class CreatorOS : U32 {
+        Linux,
+        Hurd,
+        Masix,
+        FreeBSD,
+        Lites,
+    };
+
     enum class CompatFeatures : U32 {
         DirPrealloc = 1,
         ImagicINodes,
         HasJournal = 4,
         ExtendedAttributes = 8,
         ResizedINodes = 16,
-        IndexedDirectories = 32
+        IndexedDirectories = 32,
+        Supported = ResizedINodes
     };
     enum class IncompatFeatures : U32 {
         Compression = 1,
-        FileType,
+        FileTypeInDir,
         Recover = 4,
         JournalDevice = 8,
-        MetaBg = 16
+        MetaBg = 16,
+        Supported = 0
     };
     enum class ReadOnlyFeatures : U32 {
         SparseSuper = 1,
         LargeFile,
-        BTreeDirectory = 4
+        BTreeDirectory = 4,
+        Supported = SparseSuper | LargeFile
     };
     enum class ComprAlgos : U32 {
         LZV1 = 1,
@@ -46,13 +59,32 @@ public:
         BZIP2 = 8,
         LZO = 16
     };
+    enum Constants {
+        Magic = 0xEF53,
+        BGDSize = 32,
+        OldRevision = 0,
+        LegacyINodeSize = 128,
+        LegacyFirstINode = 11,
+    };
+
+    struct BlockGroupDescriptor {
+        U32 blockBitmap;
+        U32 iNodeBitmap;
+        U32 iNodeTable;
+        U16 freeBlocks;
+        U16 freeINodes;
+        U16 directoryBlocks;
+    };
+
+    friend class Ext2INode;
 
     Ext2Driver(const wchar_t* name, std::ptrdiff_t defSectSize = 512);
     void DeserializeSuperblock(Byte* buf, std::ptrdiff_t size);
-    auto GetBlockSize() -> I32;
+    auto GetBlockSize() const -> I32;
     void ReadBlocks(Byte* buf, U32 blockNum, I32 count = 1);
     void WriteBlocks(U32 blockNum, const Byte* buf, I32 count = 1);
-
+    auto GetBlockGroupDescriptor(U32 ) -> BlockGroupDescriptor;
+private:
     Device dev;
 
     U32 iNodeCount;
@@ -76,10 +108,10 @@ public:
     U16 minorRevision;
     I32 checkTime;
     I32 checkInterval;
-    U32 creatorOS;
+    CreatorOS creatorOS;
     U32 revision;
-    U16 defResUId;
-    U16 defResGId;
+    U16 reservedAllocUId;
+    U16 reservedAllocGId;
     U32 firstINode;
     U16 iNodeSize;
     U16 superBlockGroup;
@@ -87,9 +119,9 @@ public:
     IncompatFeatures incompatibleFeatures;
     ReadOnlyFeatures readOnlyFeatures;
     UUID uuid;
-    char volumeName[16];
-    char lastMountPath[64];
-    ComprAlgos complAlgos;
+    std::string volumeName;
+    std::string lastMountPath;
+    ComprAlgos comprAlgos;
     U8 preallocBlocks;
     U8 preallocDirBlocks;
     UUID journalUUID;
@@ -101,6 +133,17 @@ public:
     U32 defMountOpts;
     U32 firstMetaBg;
 };
+
+template <>
+struct enum_bit<Ext2Driver::CompatFeatures> : std::true_type {};
+
+template <>
+struct enum_bit<Ext2Driver::IncompatFeatures> : std::true_type {};
+
+template <>
+struct enum_bit<Ext2Driver::ReadOnlyFeatures> : std::true_type {};
+
+using namespace enum_bit_ops;
 
 } // namespace e2bt
 

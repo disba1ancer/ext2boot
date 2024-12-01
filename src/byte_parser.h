@@ -1,11 +1,36 @@
 #ifndef BYTE_PARSER_H
 #define BYTE_PARSER_H
 
+#include <bit>
 #include <span>
 #include <stdexcept>
 #include "types.h"
 
 namespace e2bt {
+
+namespace byte_paser_detail {
+
+template <typename T, typename It>
+T direct_deserialize(It in)
+{
+    Byte val[sizeof(T)];
+    for (std::size_t i = 0; i < sizeof(T); ++i, ++in) {
+        val[i] = *in;
+    }
+    return std::bit_cast<T>(val);
+}
+
+template <typename T, typename It>
+T reverse_deserialize(It in)
+{
+    Byte val[sizeof(T)];
+    for (std::size_t i = 0; i < sizeof(T); ++i, ++in) {
+        val[sizeof(T) - 1 - i] = *in;
+    }
+    return std::bit_cast<T>(val);
+}
+
+}
 
 template <bool pack = false>
 struct byte_parser
@@ -18,6 +43,7 @@ struct byte_parser
     template <typename T>
     auto get() -> T
     {
+        using namespace byte_paser_detail;
         if constexpr (!pack) {
             auto align = std::ptrdiff_t(alignof(T));
             auto offset = alignOffset + next - seq.begin();
@@ -27,25 +53,22 @@ struct byte_parser
             next = seq.end();
             throw std::runtime_error("End of byte sequence");
         }
-        T result{};
-        memcpy(std::addressof(result), seq.data() + (next - seq.begin()), sizeof(T));
+        auto result = direct_deserialize<T>(next);
         next += sizeof(T);
         return result;
     }
     template <typename T>
     auto& get(T& result)
     {
-        if constexpr (!pack) {
-            auto align = std::ptrdiff_t(alignof(T));
-            auto offset = alignOffset + next - seq.begin();
-            skip((align - offset) & (align - 1));
+        result = get<T>();
+        return *this;
+    }
+    template <typename T, std::size_t N>
+    auto& get(T(& result)[N])
+    {
+        for (std::size_t i = 0; i < N; ++i) {
+            result[i] = get<T>();
         }
-        if (seq.end() - next < sizeof(T)) {
-            next = seq.end();
-            throw std::runtime_error("End of byte sequence");
-        }
-        memcpy(std::addressof(result), seq.data() + (next - seq.begin()), sizeof(T));
-        next += sizeof(T);
         return *this;
     }
     auto& skip(std::ptrdiff_t n)
